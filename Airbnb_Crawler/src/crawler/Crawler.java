@@ -3,35 +3,20 @@ package crawler;
 import java.io.File;
 import java.sql.Connection;
 import java.sql.DriverManager;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.sql.Statement;
-import java.sql.Timestamp;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
-import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import org.apache.commons.io.FileUtils;
 import org.jsoup.Jsoup;
-import org.jsoup.nodes.Comment;
-import org.jsoup.nodes.DataNode;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-import org.jsoup.nodes.Node;
-import org.jsoup.select.Elements;
-import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.firefox.FirefoxDriver;
 
 public class Crawler {
-	private static Connection _connectionToZipcodes, _connectionToMain;
-	private static WebDriver _primaryDriver;
-	private static Calendar _calendar;
-	private static int _month, _year;
+	private static Connection _connection;
+//	private static WebDriver _primaryDriver;
 	private static final String[] GROUP_ONE = { "AL", "AK", "AZ", "AR", "CA" };
 	private static final String[] GROUP_TWO = { "CO", "CT", "DE", "FL", "GA" };
 	private static final String[] GROUP_THREE = { "HI", "ID", "IL", "IN", "IA" };
@@ -52,7 +37,7 @@ public class Crawler {
 	public static void main(String[] args) throws Exception {
 		if (args.length < 3) {
 			System.out.println("Error: Not enough arguments passed in.");
-			System.out.println("Format: ./crawler.java <selection> <month> <year>");
+			System.out.println("Format: ./crawler <selection> <month> <year>");
 			System.exit(1);
 		}
 
@@ -65,15 +50,12 @@ public class Crawler {
 			System.exit(1);
 		}
 
-		_connectionToMain = getConnectionToMain();
-		_connectionToZipcodes = getConnectionToZipcodes();
-		_primaryDriver = null;
-		_calendar = Calendar.getInstance();
-		_month = _calendar.get(Calendar.MONTH);
-		_year = _calendar.get(Calendar.YEAR);
+		_connection = getConnection();
+//		_primaryDriver = null;
 
-//		File file = new File("G:/Eclipse/eclipse/chromedriver.exe");
-//		System.setProperty("webdriver.chrome.driver", file.getAbsolutePath());
+		// File file = new File("G:/Eclipse/eclipse/chromedriver.exe");
+		// System.setProperty("webdriver.chrome.driver",
+		// file.getAbsolutePath());
 
 		if (selection.equals("all")) {
 			crawlStates(GROUP_ONE, month, year);
@@ -113,10 +95,9 @@ public class Crawler {
 		}
 		System.out.println("Crawling completed (100%).");
 
-		_connectionToMain.close();
-		_connectionToZipcodes.close();
+		_connection.close();
 
-		tryClosePrimaryDriver();
+//		tryClosePrimaryDriver();
 	}
 
 	/**
@@ -151,19 +132,22 @@ public class Crawler {
 		try {
 			System.out.println("Crawling " + state + ", " + month + "/" + year);
 
-			Statement statement = _connectionToZipcodes.createStatement(java.sql.ResultSet.TYPE_FORWARD_ONLY,
+			Statement statement = _connection.createStatement(java.sql.ResultSet.TYPE_FORWARD_ONLY,
 					java.sql.ResultSet.CONCUR_READ_ONLY);
 			statement.setFetchSize(Integer.MIN_VALUE);
 			ResultSet result = statement
 					.executeQuery("SELECT zip FROM cities_extended WHERE state_code='" + state + "' order by zip");
-			// ResultSet result = statement.executeQuery("SELECT zip_code FROM
-			// zipcodes_bystate WHERE state='" + state + "' order by zip_code");
+			// ResultSet result = statement.executeQuery(
+			// "SELECT zip_code FROM zipcodes_bystate WHERE state='" + state +
+			// "' order by zip_code");
 
 			while (result.next()) {
 				int zipcode = convertToInt(result.getString("zip"));
 				// int zipcode = convertToInt(result.getString("zip_code"));
 
-				crawlZipcodeByMonthYear(zipcode, month, year);
+				if (zipcode > 0) {
+					crawlZipcodeByMonthYear(state, zipcode, month, year);
+				}
 			}
 			result.close();
 
@@ -183,7 +167,7 @@ public class Crawler {
 	 * @desc Extracts airbnb's average-price/month for zipcode for month<int>,
 	 *       year<int> and stores extracted data into database.
 	 */
-	public static void crawlZipcodeByMonthYear(int zipcode, int month, int year) throws Exception {
+	public static void crawlZipcodeByMonthYear(String state, int zipcode, int month, int year) throws Exception {
 		try {
 			System.out.println("Crawling " + zipcode + ", " + month + "/" + year);
 
@@ -196,94 +180,14 @@ public class Crawler {
 					+ checkOutDate;
 			System.out.println(url);
 
-			_primaryDriver = new FirefoxDriver();
-//			 _primaryDriver = new ChromeDriver();
-			_primaryDriver.get(url);
-			Thread.sleep(3000);
-
-			Airbnb airbnb = new Airbnb();
-			airbnb.setCrawlTime(getCurrentTimestamp());
-			airbnb.setZipcode(zipcode);
-			airbnb.setUrl(url);
-			airbnb.setMonth(month);
-			airbnb.setYear(year);
-
-			String pageSource = _primaryDriver.getPageSource();
-			Document document = Jsoup.parse(pageSource);
-			airbnb.setAveragePrice(getAveragePriceFromDocumentComments(document));
-
-			airbnb.print();
-
-			saveAirbnbToDatabase(airbnb);
+			savePageSourceFromListingUrl(state, zipcode, month, year, url);
 
 			System.out.println("Finished crawling " + zipcode + ", " + month + "/" + year);
-			_primaryDriver.close();
 		} catch (Exception e) {
 			System.err.println("Error: " + e.getMessage());
 			e.printStackTrace();
 			System.exit(-1);
 		}
-	}
-
-	/**
-	 * @title getAveragePriceFromDocumentComments
-	 * @param document<Node>
-	 * @return averagePrice<int> if found in document<Node>, -1 otherwise
-	 */
-	private static int getAveragePriceFromDocumentComments(Document document) {
-		int averagePrice = -1;
-
-		Elements scripts = document.getElementsByTag("script");
-
-		for (int i = 0; i < scripts.size() && averagePrice < 0; ++i) {
-			List<DataNode> scriptDataNodes = scripts.get(i).dataNodes();
-			for (int j = 0; j < scriptDataNodes.size() && averagePrice < 0; ++j) {
-				averagePrice = getAveragePriceFromText(scriptDataNodes.get(j).getWholeData());
-			}
-		}
-
-		return averagePrice;
-	}
-
-	/**
-	 * @title getAveragePriceFromText
-	 * @param text<String>
-	 * @return averagePrice<int> if found in text<String>, -1 otherwise
-	 */
-	public static int getAveragePriceFromText(String text) {
-		Matcher m = Pattern.compile("\"average_price\":[0-9]+[,]").matcher(text);
-
-		int averagePrice = -1;
-		while (m.find()) {
-			averagePrice = convertToInt(m.group());
-			System.out.println("AveragePrice: " + averagePrice);
-			if (averagePrice > 0) {
-				break;
-			}
-		}
-
-		return averagePrice;
-	}
-
-	/**
-	 * @title saveAirbnbToDatabase
-	 * @param airbnb<Airbnb>
-	 * @throws Exception
-	 * @desc Inserts airbnb's data to database
-	 */
-	public static void saveAirbnbToDatabase(Airbnb airbnb) throws Exception {
-		System.out.println("Entered saveAirbnbToDatabase");
-
-		String sqlStatement = "INSERT INTO airbnb(zipcode, average_price, month, year, url, crawl_time) VALUES(?,?,?,?,?,?)";
-		PreparedStatement preparedStatement = _connectionToMain.prepareStatement(sqlStatement);
-		preparedStatement.setInt(1, airbnb.getZipcode());
-		preparedStatement.setInt(2, airbnb.getAveragePrice());
-		preparedStatement.setInt(3, airbnb.getMonth());
-		preparedStatement.setInt(4, airbnb.getYear());
-		preparedStatement.setString(5, airbnb.getUrl());
-		preparedStatement.setTimestamp(6, airbnb.getCrawlTime());
-		preparedStatement.executeUpdate();
-		preparedStatement.close();
 	}
 
 	/**
@@ -312,31 +216,30 @@ public class Crawler {
 	}
 
 	/**
-	 * @title nextPageDoesExist
-	 * @param driver<WebDriver>
-	 * @return True if "nextPage" element is found in driver, false otherwise
-	 */
-	public static boolean nextPageDoesExist(WebDriver driver) {
-		System.out.println("Entered nextPageDoesExist");
-
-		return driver
-				.findElements(By.cssSelector(
-						"ul[class=buttonList_11hau3k] li[class=buttonContainer_1am0dt-o_O-noRightMargin_10fyztj] a[aria-label=Next]"))
-				.size() > 0;
-	}
-
-	/**
-	 * @title writeStringToFile
-	 * @param fileName<String>,
-	 *            text<String>
+	 * @title savePageSourceFromListingUrl
+	 * @param url<String>
 	 * @return
-	 * @desc Creates fileName, if it does not exist, in /pagesources and writes
-	 *       text to file.
+	 * @desc Gets the page source from the url<String> and writes it to a text
+	 *       file @ "/airbnb/pagesources/state/zipcode_month_year.txt"
 	 */
-	public static void writeStringToFile(String fileName, String text) throws Exception {
-		String directory = "./pagesources/other/";
+	public static void savePageSourceFromListingUrl(String state, int zipcode, int month, int year, String url)
+			throws Exception {
+		System.out.println("Entered savePageSourceFromListingUrl");
 
-		writeStringToFile(directory, fileName, text);
+		// _primaryDriver = new FirefoxDriver();
+		// _primaryDriver = new ChromeDriver();
+		// _primaryDriver.get(url);
+
+		String pageSource = Jsoup.connect(url).get().html();
+//		Thread.sleep(3000);
+
+		// Get page sources to work offline
+		// String pageSource = _primaryDriver.getPageSource();
+		String fileName = zipcode + "_" + month + "_" + year + ".txt";
+		String directory = "./pagesources/" + state + "/";
+		writeStringToFile(directory, fileName, pageSource);
+
+		// _primaryDriver.close();
 	}
 
 	/**
@@ -355,23 +258,21 @@ public class Crawler {
 	}
 
 	/**
-	 * @title getConnectionToMain
-	 * @param
-	 * @return connection<Connection> to MySQL database where data will be
-	 *         stored
+	 * @title nextPageDoesExist
+	 * @param driver<WebDriver>
+	 * @return True if "nextPage" element is found in driver, false otherwise
+	 * @desc NO LONGER USED
 	 */
-	private static Connection getConnectionToMain() throws ClassNotFoundException, SQLException {
-		Class.forName("com.mysql.jdbc.Driver");
-		String urldb = "jdbc:mysql://localhost/homeDB";
-		String user = "jonathan";
-		String password = "password";
-
-		// String urldb = "jdbc:mysql://localhost/databaselabs";
-		// String user = "root";
-		// String password = "A895784e1!";
-		Connection connection = DriverManager.getConnection(urldb, user, password);
-		return connection;
-	}
+	// public static boolean nextPageDoesExist(WebDriver driver) {
+	// System.out.println("Entered nextPageDoesExist");
+	//
+	// return driver
+	// .findElements(By.cssSelector(
+	// "ul[class=buttonList_11hau3k]
+	// li[class=buttonContainer_1am0dt-o_O-noRightMargin_10fyztj]
+	// a[aria-label=Next]"))
+	// .size() > 0;
+	// }
 
 	/**
 	 * @title getConnectionToZipcodes
@@ -379,7 +280,7 @@ public class Crawler {
 	 * @return connection<Connection> to MySQL database where zipcodes are
 	 *         stored
 	 */
-	private static Connection getConnectionToZipcodes() throws Exception {
+	private static Connection getConnection() throws Exception {
 		Class.forName("com.mysql.jdbc.Driver");
 		String urldb = "jdbc:mysql://localhost/business";
 		String user = "jonathan";
@@ -387,21 +288,9 @@ public class Crawler {
 
 		// String urldb = "jdbc:mysql://localhost/cs179_project";
 		// String user = "root";
-		// String password = "A895784e1!";
+		// String password = "//FIXME: PUT REAL PASS!";
 		Connection connection = DriverManager.getConnection(urldb, user, password);
 		return connection;
-	}
-
-	/**
-	 * @title getCurrentTimestamp
-	 * @param
-	 * @return currentTimestamp<Timestamp>
-	 */
-	private static Timestamp getCurrentTimestamp() {
-		System.out.println("Entered getCurrentTimestamp");
-
-		Timestamp currentTimestamp = new java.sql.Timestamp(Calendar.getInstance().getTime().getTime());
-		return currentTimestamp;
 	}
 
 	/**
@@ -409,10 +298,11 @@ public class Crawler {
 	 * @param
 	 * @return
 	 * @desc Ends _primaryDriver<WebDriver>'s session if session is not null
+	 * 		 NO LONGER IN USE
 	 */
-	public static void tryClosePrimaryDriver() {
-		if (_primaryDriver != null) {
-			_primaryDriver.quit();
-		}
-	}
+//	public static void tryClosePrimaryDriver() {
+//		if (_primaryDriver != null) {
+//			_primaryDriver.quit();
+//		}
+//	}
 }

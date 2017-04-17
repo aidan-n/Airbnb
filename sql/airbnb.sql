@@ -1,7 +1,7 @@
 ﻿DROP TABLE IF EXISTS airbnb;
 CREATE TABLE airbnb (
 	zipcode int(10) NOT NULL,
-	average_price int(10) NOT NULL,
+	average_price int(10) DEFAULT NULL,
 	month int(10) NOT NULL,
 	year int(10) NOT NULL,
 	url varchar(200) NOT NULL,
