@@ -20,16 +20,16 @@ import org.jsoup.select.Elements;
 
 public class Scraper {
 	private static Connection _connection;
-	private static final String[] GROUP_ONE = { "AL", "AK", "AZ", "AR", "CA" };
-	private static final String[] GROUP_TWO = { "CO", "CT", "DE", "FL", "GA" };
-	private static final String[] GROUP_THREE = { "HI", "ID", "IL", "IN", "IA" };
-	private static final String[] GROUP_FOUR = { "KS", "KY", "LA", "ME", "MD" };
-	private static final String[] GROUP_FIVE = { "MA", "MI", "MN", "MS", "MO" };
-	private static final String[] GROUP_SIX = { "MT", "NE", "NV", "NH", "NJ" };
-	private static final String[] GROUP_SEVEN = { "NM", "NY", "NC", "ND", "OH" };
-	private static final String[] GROUP_EIGHT = { "OK", "OR", "PA", "RI", "SC" };
-	private static final String[] GROUP_NINE = { "SD", "TN", "TX", "UT", "VT" };
-	private static final String[] GROUP_TEN = { "VA", "WA", "WV", "WI", "WY", "DC" };
+	private static final String[] GROUP_ONE = { "AL", "AR", "CA" };
+	private static final String[] GROUP_TWO = { "AK", "AZ", "MI", "NY" };
+	private static final String[] GROUP_THREE = { "CO", "GA", "PA", "UT" };
+	private static final String[] GROUP_FOUR = { "MD", "ME", "NM", "TX" };
+	private static final String[] GROUP_FIVE = { "CT", "IA", "MS", "VA", "WA", "WY" };
+	private static final String[] GROUP_SIX = { "DC", "MO", "MT", "NC" , "ND", "NE", "NH" };
+	private static final String[] GROUP_SEVEN = { "DE", "FL", "HI", "IL", "KS", "RI" };
+	private static final String[] GROUP_EIGHT = { "ID", "IN", "KY", "LA", "MA", "OR" };
+	private static final String[] GROUP_NINE = { "MN", "NJ", "NV", "OK", "PR", "SC", "SD", "VT" };
+	private static final String[] GROUP_TEN = { "OH", "TV", "WI", "WV" };
 
 	/**
 	 * @title main
@@ -40,7 +40,7 @@ public class Scraper {
 	public static void main(String[] args) throws Exception {
 		if (args.length != 1) {
 			System.out.println("Error: Incorrect usage.");
-			System.out.println("Correct usage: ./scraper <State to scrape>");
+			System.out.println("Correct usage: ./scraper <Selection (all,1-10)>");
 			System.exit(1);
 		}
 
@@ -116,10 +116,8 @@ public class Scraper {
 	public static void scrapeState(String state) throws Exception {
 		try {
 			System.out.println("Scraping " + state);
-			// String directoryPath =
-			// "C:/Users/jonat/Desktop/DatabaseResearch/Airbnb/Airbnb_Crawler/pagesources/"
-			// + state + "/";
-			String directoryPath = "/home/jtan021/airbnb/pagesources/" + state + "/";
+			 String directoryPath = "C:/Users/jonat/Desktop/DatabaseResearch/Airbnb/Airbnb_Crawler/pagesources/" + state + "/";
+//			String directoryPath = "/home/jtan021/airbnb/pagesources/" + state + "/";
 			File directory = new File(directoryPath);
 
 			if (directory != null) {
@@ -135,7 +133,7 @@ public class Scraper {
 					}
 				}
 			}
-			System.out.println("Finished scraping state " + state + "... closing driver.");
+			System.out.println("Finished scraping state " + state);
 		} catch (Exception e) {
 			System.err.println("Error: " + e.getMessage());
 			e.printStackTrace();
@@ -170,7 +168,7 @@ public class Scraper {
 			String url = "https://www.airbnb.com/s/" + zipcode + "/homes?checkin=" + checkInDate + "&checkout="
 					+ checkOutDate;
 
-			String pageSource = FileUtils.readFileToString(file);
+			String pageSource = FileUtils.readFileToString(file, "UTF-8");
 			Document document = Jsoup.parse(pageSource);
 
 			Airbnb airbnb = new Airbnb();
@@ -293,13 +291,13 @@ public class Scraper {
 	 */
 	private static Connection getConnection() throws ClassNotFoundException, SQLException {
 		Class.forName("com.mysql.jdbc.Driver");
-		String urldb = "jdbc:mysql://localhost/homeDB";
-		String user = "jonathan";
-		String password = "password";
+//		String urldb = "jdbc:mysql://localhost/homeDB";
+//		String user = "jonathan";
+//		String password = "password";
 
-		// String urldb = "jdbc:mysql://localhost/databaselabs";
-		// String user = "root";
-		// String password = "FIXME: PUT PASSWORD";
+		 String urldb = "jdbc:mysql://localhost/databaselabs";
+		 String user = "root";
+		 String password = "A895784e1!";
 		Connection connection = DriverManager.getConnection(urldb, user, password);
 		return connection;
 	}

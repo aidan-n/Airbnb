@@ -1,32 +1,31 @@
 package crawler;
 
 import java.io.File;
+import java.net.InetSocketAddress;
+import java.net.Proxy;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.Statement;
-import java.util.Calendar;
-import java.util.GregorianCalendar;
-
-import org.apache.commons.io.FileUtils;
-import org.jsoup.Jsoup;
-import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.chrome.ChromeDriver;
-import org.openqa.selenium.firefox.FirefoxDriver;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Crawler {
 	private static Connection _connection;
-//	private static WebDriver _primaryDriver;
-	private static final String[] GROUP_ONE = { "AL", "AK", "AZ", "AR", "CA" };
-	private static final String[] GROUP_TWO = { "CO", "CT", "DE", "FL", "GA" };
-	private static final String[] GROUP_THREE = { "HI", "ID", "IL", "IN", "IA" };
-	private static final String[] GROUP_FOUR = { "KS", "KY", "LA", "ME", "MD" };
-	private static final String[] GROUP_FIVE = { "MA", "MI", "MN", "MS", "MO" };
-	private static final String[] GROUP_SIX = { "MT", "NE", "NV", "NH", "NJ" };
-	private static final String[] GROUP_SEVEN = { "NM", "NY", "NC", "ND", "OH" };
-	private static final String[] GROUP_EIGHT = { "OK", "OR", "PA", "RI", "SC" };
-	private static final String[] GROUP_NINE = { "SD", "TN", "TX", "UT", "VT" };
-	private static final String[] GROUP_TEN = { "VA", "WA", "WV", "WI", "WY", "DC" };
+	private static final String[] GROUP_ONE = { "AL", "AR" };
+	private static final String[] GROUP_TWO = { "AK", "AZ", "MI", "NY" };
+	private static final String[] GROUP_THREE = { "CO", "GA", "PA", "UT" };
+	private static final String[] GROUP_FOUR = { "MD", "ME", "NM", "TX" };
+	private static final String[] GROUP_FIVE = { "CT", "IA", "MS", "VA", "WA", "WY" };
+	private static final String[] GROUP_SIX = { "DC", "MO", "MT", "NC", "ND", "NE", "NH" };
+	private static final String[] GROUP_SEVEN = { "DE", "FL", "HI", "IL", "KS", "RI" };
+	private static final String[] GROUP_EIGHT = { "ID", "IN", "KY", "LA", "MA", "OR" };
+	private static final String[] GROUP_NINE = { "MN", "NJ", "NV", "OK", "PR", "SC", "SD", "VT" };
+	private static final String[] GROUP_TEN = { "OH", "TV", "WI", "WV" };
+	private static final String[] PROXIES = { "d01.cs.ucr.edu", "d02.cs.ucr.edu", "d03.cs.ucr.edu", "d04.cs.ucr.edu",
+			"d05.cs.ucr.edu", "d06.cs.ucr.edu", "d07.cs.ucr.edu", "d08.cs.ucr.edu", "d09.cs.ucr.edu",
+			"d10.cs.ucr.edu" };
+	private static final int PROXY_PORT = 3128;
 
 	/**
 	 * @title main
@@ -37,7 +36,7 @@ public class Crawler {
 	public static void main(String[] args) throws Exception {
 		if (args.length < 3) {
 			System.out.println("Error: Not enough arguments passed in.");
-			System.out.println("Format: ./crawler <selection> <month> <year>");
+			System.out.println("Correct usage: ./crawler <selection> <month> <year>");
 			System.exit(1);
 		}
 
@@ -51,11 +50,9 @@ public class Crawler {
 		}
 
 		_connection = getConnection();
-//		_primaryDriver = null;
-
-		// File file = new File("G:/Eclipse/eclipse/chromedriver.exe");
-		// System.setProperty("webdriver.chrome.driver",
-		// file.getAbsolutePath());
+		
+		File file = new File("G:/Eclipse/eclipse/chromedriver.exe");
+		System.setProperty("webdriver.chrome.driver", file.getAbsolutePath());
 
 		if (selection.equals("all")) {
 			crawlStates(GROUP_ONE, month, year);
@@ -96,8 +93,6 @@ public class Crawler {
 		System.out.println("Crawling completed (100%).");
 
 		_connection.close();
-
-//		tryClosePrimaryDriver();
 	}
 
 	/**
@@ -135,21 +130,105 @@ public class Crawler {
 			Statement statement = _connection.createStatement(java.sql.ResultSet.TYPE_FORWARD_ONLY,
 					java.sql.ResultSet.CONCUR_READ_ONLY);
 			statement.setFetchSize(Integer.MIN_VALUE);
-			ResultSet result = statement
-					.executeQuery("SELECT zip FROM cities_extended WHERE state_code='" + state + "' order by zip");
-			// ResultSet result = statement.executeQuery(
-			// "SELECT zip_code FROM zipcodes_bystate WHERE state='" + state +
-			// "' order by zip_code");
+			// ResultSet result = statement
+			// .executeQuery("SELECT zip FROM cities_extended WHERE
+			// state_code='" + state + "' order by zip");
+			ResultSet result = statement.executeQuery(
+					"SELECT zip_code FROM zipcodes_bystate WHERE state='" + state + "' order by zip_code");
+
+			List<Integer> bucket1 = new ArrayList<Integer>();
+			List<Integer> bucket2 = new ArrayList<Integer>();
+//			List<Integer> bucket3 = new ArrayList<Integer>();
+//			List<Integer> bucket4 = new ArrayList<Integer>();
+//			List<Integer> bucket5 = new ArrayList<Integer>();
+//			List<Integer> bucket6 = new ArrayList<Integer>();
+//			List<Integer> bucket7 = new ArrayList<Integer>();
+//			List<Integer> bucket8 = new ArrayList<Integer>();
+//			List<Integer> bucket9 = new ArrayList<Integer>();
+//			List<Integer> bucket10 = new ArrayList<Integer>();
+			int counter = 0;
 
 			while (result.next()) {
-				int zipcode = convertToInt(result.getString("zip"));
-				// int zipcode = convertToInt(result.getString("zip_code"));
+				// int zipcode = convertToInt(result.getString("zip"));
+				int zipcode = convertToInt(result.getString("zip_code"));
 
 				if (zipcode > 0) {
-					crawlZipcodeByMonthYear(state, zipcode, month, year);
+					if (counter % 2 == 0) {
+						bucket1.add(zipcode);
+					} else if (counter % 2 == 1) {
+						bucket2.add(zipcode);
+//					} else if (counter % 10 == 2) {
+//						bucket3.add(zipcode);
+//					} else if (counter % 10 == 3) {
+//						bucket4.add(zipcode);
+//					} else if (counter % 10 == 4) {
+//						bucket5.add(zipcode);
+//					} else if (counter % 10 == 5) {
+//						bucket6.add(zipcode);
+//					} else if (counter % 10 == 6) {
+//						bucket7.add(zipcode);
+//					} else if (counter % 10 == 7) {
+//						bucket8.add(zipcode);
+//					} else if (counter % 10 == 8) {
+//						bucket9.add(zipcode);
+//					} else if (counter % 10 == 9) {
+//						bucket10.add(zipcode);
+					}
+					++counter;
 				}
 			}
 			result.close();
+
+			if (!bucket1.isEmpty()) {
+				Proxy proxy1 = new Proxy(Proxy.Type.HTTP, new InetSocketAddress(PROXIES[0], PROXY_PORT));
+				Worker worker1 = new Worker("worker1", state, bucket1, month, year, proxy1);
+				worker1.start();
+			}
+			if (!bucket2.isEmpty()) {
+				Proxy proxy2 = new Proxy(Proxy.Type.HTTP, new InetSocketAddress(PROXIES[1], PROXY_PORT));
+				Worker worker2 = new Worker("worker2", state, bucket2, month, year, proxy2);
+				worker2.start();
+			}
+//			if (!bucket3.isEmpty()) {
+//				Proxy proxy3 = new Proxy(Proxy.Type.HTTP, new InetSocketAddress(PROXIES[2], PROXY_PORT));
+//				Worker worker3 = new Worker("worker3", state, bucket3, month, year, proxy3);
+//				worker3.start();
+//			}
+//			if (!bucket4.isEmpty()) {
+//				Proxy proxy4 = new Proxy(Proxy.Type.HTTP, new InetSocketAddress(PROXIES[3], PROXY_PORT));
+//				Worker worker4 = new Worker("worker4", state, bucket4, month, year, proxy4);
+//				worker4.start();
+//			}
+//			if (!bucket5.isEmpty()) {
+//				Proxy proxy5 = new Proxy(Proxy.Type.HTTP, new InetSocketAddress(PROXIES[4], PROXY_PORT));
+//				Worker worker5 = new Worker("worker5", state, bucket5, month, year, proxy5);
+//				worker5.start();
+//			}
+//			if (!bucket6.isEmpty()) {
+//				Proxy proxy6 = new Proxy(Proxy.Type.HTTP, new InetSocketAddress(PROXIES[5], PROXY_PORT));
+//				Worker worker6 = new Worker("worker6", state, bucket6, month, year, proxy6);
+//				worker6.start();
+//			}
+//			if (!bucket7.isEmpty()) {
+//				Proxy proxy7 = new Proxy(Proxy.Type.HTTP, new InetSocketAddress(PROXIES[6], PROXY_PORT));
+//				Worker worker7 = new Worker("worker7", state, bucket7, month, year, proxy7);
+//				worker7.start();
+//			}
+//			if (!bucket8.isEmpty()) {
+//				Proxy proxy8 = new Proxy(Proxy.Type.HTTP, new InetSocketAddress(PROXIES[7], PROXY_PORT));
+//				Worker worker8 = new Worker("worker8", state, bucket8, month, year, proxy8);
+//				worker8.start();
+//			}
+//			if (!bucket9.isEmpty()) {
+//				Proxy proxy9 = new Proxy(Proxy.Type.HTTP, new InetSocketAddress(PROXIES[8], PROXY_PORT));
+//				Worker worker9 = new Worker("worker9", state, bucket9, month, year, proxy9);
+//				worker9.start();
+//			}
+//			if (!bucket10.isEmpty()) {
+//				Proxy proxy10 = new Proxy(Proxy.Type.HTTP, new InetSocketAddress(PROXIES[9], PROXY_PORT));
+//				Worker worker10 = new Worker("worker10", state, bucket10, month, year, proxy10);
+//				worker10.start();
+//			}
 
 			System.out.println("Finished crawling " + state + ", " + month + "/" + year);
 		} catch (Exception e) {
@@ -157,104 +236,6 @@ public class Crawler {
 			e.printStackTrace();
 			System.exit(-1);
 		}
-	}
-
-	/**
-	 * @title crawlZipcodeByMonthYear
-	 * @param state<String>,
-	 *            month<int>, year<int>
-	 * @return
-	 * @desc Extracts airbnb's average-price/month for zipcode for month<int>,
-	 *       year<int> and stores extracted data into database.
-	 */
-	public static void crawlZipcodeByMonthYear(String state, int zipcode, int month, int year) throws Exception {
-		try {
-			System.out.println("Crawling " + zipcode + ", " + month + "/" + year);
-
-			Calendar calendar = new GregorianCalendar(year, month, 1);
-			int numDays = calendar.getActualMaximum(Calendar.DAY_OF_MONTH);
-			String checkInDate = year + "-" + month + "-01";
-			String checkOutDate = year + "-" + month + "-" + numDays;
-
-			String url = "https://www.airbnb.com/s/" + zipcode + "/homes?checkin=" + checkInDate + "&checkout="
-					+ checkOutDate;
-			System.out.println(url);
-
-			savePageSourceFromListingUrl(state, zipcode, month, year, url);
-
-			System.out.println("Finished crawling " + zipcode + ", " + month + "/" + year);
-		} catch (Exception e) {
-			System.err.println("Error: " + e.getMessage());
-			e.printStackTrace();
-			System.exit(-1);
-		}
-	}
-
-	/**
-	 * @title getNumericalCharacters
-	 * @param value<String>
-	 * @return value<String> with numerical characters only
-	 */
-	public static String getNumericalCharacters(String value) {
-		return value.replaceAll("[^0-9]", "");
-	}
-
-	/**
-	 * @title convertToInt
-	 * @param value<String>
-	 * @return Converts value<String> to an integer after removing all
-	 *         non-numerical characters
-	 */
-	public static int convertToInt(String value) {
-		String filteredValue = getNumericalCharacters(value);
-
-		if (filteredValue.length() > 0) {
-			return Integer.parseInt(filteredValue);
-		} else {
-			return 0;
-		}
-	}
-
-	/**
-	 * @title savePageSourceFromListingUrl
-	 * @param url<String>
-	 * @return
-	 * @desc Gets the page source from the url<String> and writes it to a text
-	 *       file @ "/airbnb/pagesources/state/zipcode_month_year.txt"
-	 */
-	public static void savePageSourceFromListingUrl(String state, int zipcode, int month, int year, String url)
-			throws Exception {
-		System.out.println("Entered savePageSourceFromListingUrl");
-
-		// _primaryDriver = new FirefoxDriver();
-		// _primaryDriver = new ChromeDriver();
-		// _primaryDriver.get(url);
-
-		String pageSource = Jsoup.connect(url).get().html();
-//		Thread.sleep(3000);
-
-		// Get page sources to work offline
-		// String pageSource = _primaryDriver.getPageSource();
-		String fileName = zipcode + "_" + month + "_" + year + ".txt";
-		String directory = "./pagesources/" + state + "/";
-		writeStringToFile(directory, fileName, pageSource);
-
-		// _primaryDriver.close();
-	}
-
-	/**
-	 * @title writeStringToFile
-	 * @param fileName<String>,
-	 *            text<String>
-	 * @return
-	 * @desc Creates fileName, if it does not exist, in /pagesources and writes
-	 *       text to file.
-	 */
-	public static void writeStringToFile(String directory, String fileName, String text) throws Exception {
-		String fullFileName = directory + fileName;
-
-		File file = new File(fullFileName);
-		FileUtils.writeStringToFile(file, text, "UTF-8");
 	}
 
 	/**
@@ -282,27 +263,39 @@ public class Crawler {
 	 */
 	private static Connection getConnection() throws Exception {
 		Class.forName("com.mysql.jdbc.Driver");
-		String urldb = "jdbc:mysql://localhost/business";
-		String user = "jonathan";
-		String password = "password";
+		// String urldb = "jdbc:mysql://localhost/business";
+		// String user = "jonathan";
+		// String password = "password";
 
-		// String urldb = "jdbc:mysql://localhost/cs179_project";
-		// String user = "root";
-		// String password = "//FIXME: PUT REAL PASS!";
+		String urldb = "jdbc:mysql://localhost/cs179_project";
+		String user = "root";
+		String password = "A895784e1!";
 		Connection connection = DriverManager.getConnection(urldb, user, password);
 		return connection;
 	}
 
 	/**
-	 * @title tryClosePrimaryDriver
-	 * @param
-	 * @return
-	 * @desc Ends _primaryDriver<WebDriver>'s session if session is not null
-	 * 		 NO LONGER IN USE
+	 * @title getNumericalCharacters
+	 * @param value<String>
+	 * @return value<String> with numerical characters only
 	 */
-//	public static void tryClosePrimaryDriver() {
-//		if (_primaryDriver != null) {
-//			_primaryDriver.quit();
-//		}
-//	}
+	public static String getNumericalCharacters(String value) {
+		return value.replaceAll("[^0-9]", "");
+	}
+
+	/**
+	 * @title convertToInt
+	 * @param value<String>
+	 * @return Converts value<String> to an integer after removing all
+	 *         non-numerical characters
+	 */
+	public static int convertToInt(String value) {
+		String filteredValue = getNumericalCharacters(value);
+
+		if (filteredValue.length() > 0) {
+			return Integer.parseInt(filteredValue);
+		} else {
+			return 0;
+		}
+	}
 }
