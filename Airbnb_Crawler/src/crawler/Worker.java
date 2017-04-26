@@ -16,6 +16,7 @@ import org.apache.commons.io.FileUtils;
 import org.jsoup.Jsoup;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.htmlunit.HtmlUnitDriver;
 
 public class Worker extends Thread {
 	private static String _name;
@@ -39,11 +40,9 @@ public class Worker extends Thread {
 	public void run() {
 		System.out.println("Running worker " + _name);
 		try {
-			_driver = new ChromeDriver();
-			
+			_driver = new HtmlUnitDriver();
 			for (int zipcode : _zipcodes) {
 				crawlZipcode(zipcode);
-
 				Thread.sleep(3000);
 			}
 			tryCloseDriver();
@@ -69,7 +68,7 @@ public class Worker extends Thread {
 	 */
 	public static void crawlZipcode(int zipcode) throws Exception {
 		try {
-			System.out.println("Crawling " + zipcode + ", " + _month + "/" + _year);
+			System.out.println(_name + " crawling " + zipcode + ", " + _month + "/" + _year);
 
 			Calendar calendar = new GregorianCalendar(_year, _month, 1);
 			int numDays = calendar.getActualMaximum(Calendar.DAY_OF_MONTH);
