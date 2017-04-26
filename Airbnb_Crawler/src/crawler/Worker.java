@@ -22,7 +22,7 @@ public class Worker implements Runnable {
 	int _month;
 	int _year;
 	String _proxyAddress;
-	WebDriver _driver;
+	HtmlUnitDriver _driver;
 
 	public Worker(String name, String state, List<Integer> zipcodes, int month, int year, String proxyAddress) {
 		_name = name;
@@ -39,10 +39,10 @@ public class Worker implements Runnable {
 			System.out.println(_name + " using proxy address: " + _proxyAddress);
 			Proxy proxy = new Proxy();
 			proxy.setHttpProxy(_proxyAddress).setFtpProxy(_proxyAddress).setSslProxy(_proxyAddress);
-			DesiredCapabilities capabilities = new DesiredCapabilities();
-			capabilities.setCapability(CapabilityType.PROXY, proxy);
-			_driver = new HtmlUnitDriver(capabilities);
-
+			_driver = new CustomHtmlUnitDriver();
+			_driver.setProxySettings(proxy);
+			_driver.manage().timeouts().implicitlyWait(30,TimeUnit.SECONDS);
+			// FIXME: NEED TO FIX HTMLUNITDRIVER JAVASCRIPT SHIT ERROR
 			System.out.println(_name + " will crawl " + _zipcodes.size() + " zipcodes.");
 			int count = 0;
 			for (count = 0; count < _zipcodes.size(); ++count) {
@@ -128,14 +128,13 @@ public class Worker implements Runnable {
 	 * @desc Gets the page source from the url<String> and writes it to a text
 	 *       file @ "/airbnb/pagesources/state/zipcode_month_year.txt"
 	 */
-	public void savePageSourceFromListingUrl(int zipcode, String url)
-			throws Exception {
+	public void savePageSourceFromListingUrl(int zipcode, String url) throws Exception {
 		System.out.println("Entered savePageSourceFromListingUrl");
-		
+
 		_driver.get(url);
 		Thread.sleep(3000);
 		String pageSource = _driver.getPageSource();
-		
+
 		String fileName = zipcode + "_" + _month + "_" + _year + ".txt";
 		String directory = "./pagesources/" + _state + "/";
 		writeStringToFile(directory, fileName, pageSource);
