@@ -26,9 +26,7 @@ public class Airbnb {
 	}
 	
 	public void setZipcode(int value) {
-		if (_zipcode != value) {
 			_zipcode = value;
-		}
 	}
 	
 	public int getAveragePrice() {
@@ -36,9 +34,7 @@ public class Airbnb {
 	}
 	
 	public void setAveragePrice(int value) {
-		if (_averagePrice != value) {
-			_averagePrice = value;
-		}
+		_averagePrice = value;
 	}
 	
 	public int getMonth() {
@@ -46,9 +42,7 @@ public class Airbnb {
 	}
 	
 	public void setMonth(int value) {
-		if (_month != value) {
-			_month = value;
-		}
+		_month = value;
 	}
 	
 	public int getYear() {
@@ -56,18 +50,14 @@ public class Airbnb {
 	}
 	
 	public void setYear(int value) {
-		if (_year != value) {
-			_year = value;
-		}
+		year = value;
 	}
 	public String getUrl() {
 		return _url;
 	}
 
 	public void setUrl(String value) {
-		if (!_url.equals(value)) {
-			_url = value;
-		}
+		_url = value;
 	}
 	
 	public Timestamp getCrawlTime() {
@@ -75,9 +65,7 @@ public class Airbnb {
 	}
 	
 	public void setCrawlTime(Timestamp value) {
-		if (_crawlTime != value) {
-			_crawlTime = value;
-		}
+		_crawlTime = value;
 	}
 	
 	public String getPriceType() {
@@ -85,9 +73,7 @@ public class Airbnb {
 	}
 	
 	public void setPriceType(String value) {
-		if (!_priceType.equals(value)) {
-			_priceType = value;
-		}
+		_priceType = value;
 	}
 	
 	public void print() {
