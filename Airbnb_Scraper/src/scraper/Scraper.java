@@ -30,6 +30,7 @@ public class Scraper {
 	private static final String[] GROUP_EIGHT = { "ID", "IN", "KY", "LA", "MA", "OR" };
 	private static final String[] GROUP_NINE = { "MN", "NJ", "NV", "OK", "PR", "SC", "SD", "VT" };
 	private static final String[] GROUP_TEN = { "OH", "TV", "WI", "WV" };
+	private static String _directoryName;
 
 	/**
 	 * @title main
@@ -38,15 +39,16 @@ public class Scraper {
 	 * @desc Main function
 	 */
 	public static void main(String[] args) throws Exception {
-		if (args.length != 1) {
+		if (args.length != 2) {
 			System.out.println("Error: Incorrect usage.");
-			System.out.println("Correct usage: ./scraper <Selection (all,1-10)>");
+			System.out.println("Correct usage: ./scraper <Selection (all,1-10)> <directory_name>");
 			System.exit(1);
 		}
 
 		_connection = getConnection();
 
 		String selection = args[0];
+		_directoryName = args[1];
 		if (selection.equals("all")) {
 			scrapeStates(GROUP_ONE);
 			scrapeStates(GROUP_TWO);
@@ -116,8 +118,8 @@ public class Scraper {
 	public static void scrapeState(String state) throws Exception {
 		try {
 			System.out.println("Scraping " + state);
-			 String directoryPath = "C:/Users/jonat/Desktop/DatabaseResearch/Airbnb/Airbnb_Crawler/pagesources/" + state + "/";
-//			String directoryPath = "/home/jtan021/airbnb/pagesources/" + state + "/";
+//			 String directoryPath = "C:/Users/jonat/Desktop/DatabaseResearch/Airbnb/Airbnb_Crawler/pagesources/" + _directoryName + "/" + state + "/";
+			String directoryPath = "/home/jtan021/airbnb/pagesources/" + _directoryName + "/" + state + "/";
 			File directory = new File(directoryPath);
 
 			if (directory != null) {
@@ -291,13 +293,13 @@ public class Scraper {
 	 */
 	private static Connection getConnection() throws ClassNotFoundException, SQLException {
 		Class.forName("com.mysql.jdbc.Driver");
-//		String urldb = "jdbc:mysql://localhost/homeDB";
-//		String user = "jonathan";
-//		String password = "password";
+		String urldb = "jdbc:mysql://localhost/homeDB";
+		String user = "jonathan";
+		String password = "password";
 
-		 String urldb = "jdbc:mysql://localhost/databaselabs";
-		 String user = "root";
-		 String password = "A895784e1!";
+//		 String urldb = "jdbc:mysql://localhost/databaselabs";
+//		 String user = "root";
+//		 String password = "A895784e1!";
 		Connection connection = DriverManager.getConnection(urldb, user, password);
 		return connection;
 	}
